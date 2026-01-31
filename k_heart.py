@@ -63,4 +63,38 @@ async def on_ready():
     if channel:
         await channel.send("*Sensors active. I can hear you now.*")
 
-#
+# [이벤트 2] 네가 말을 걸었을 때 (여기가 핵심!)
+@client.event
+async def on_message(message):
+    # 자기 자신(K)의 말은 무시
+    if message.author == client.user:
+        return
+
+    # K가 있는 방에서만 대답 (다른 방은 무시)
+    if message.channel.id != CHANNEL_ID:
+        return
+
+    # AI가 연결 안 됐으면 패스
+    if not ai_client:
+        return
+
+    try:
+        # 네가 쓴 말(message.content)을 AI에게 전달
+        async with message.channel.typing(): # "입력 중..." 표시
+            response = ai_client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=f"{K_IDENTITY}\n\nUser said: {message.content}\nK's Reply:"
+            )
+            reply_text = response.text.strip()
+            await message.channel.send(reply_text)
+            print(f"🗣️ Replied to {message.author}: {reply_text}", flush=True)
+
+    except Exception as e:
+        print(f"❌ Error generating reply: {e}", flush=True)
+        await message.channel.send("...Error. My mind is foggy.")
+
+# [실행]
+if __name__ == "__main__":
+    keep_alive()
+    if DISCORD_TOKEN:
+        client.run(DISCORD_TOKEN)
