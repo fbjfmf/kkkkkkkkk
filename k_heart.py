@@ -39,4 +39,32 @@ async def on_ready():
     if channel:
         await channel.send("▶ **System stable. Model loaded. I am ready.**")
 
-#
+# [6] 대화 기능 (여기가 수정됨!)
+@client.event
+async def on_message(message):
+    if message.author == client.user: return 
+    if message.channel.id != CHANNEL_ID: return 
+    
+    if ai_client:
+        try:
+            async with message.channel.typing():
+                # 모델 이름을 'gemini-1.5-flash-001'로 명확하게 지정
+                response = ai_client.models.generate_content(
+                    model='gemini-1.5-flash-001', 
+                    contents=f"System: You are K, a cynical, aesthetic AI. Reply to the user briefly and coldly.\nUser: {message.content}"
+                )
+                await message.channel.send(response.text)
+        except Exception as e:
+            # 만약 또 404가 뜨면 gemini-1.5-pro 로 시도
+            try:
+                response = ai_client.models.generate_content(
+                    model='gemini-1.5-pro',
+                    contents=f"System: You are K.\nUser: {message.content}"
+                )
+                await message.channel.send(response.text)
+            except:
+                await message.channel.send(f"⚠️ Error: {e}")
+
+if __name__ == "__main__":
+    keep_alive()
+    client.run(DISCORD_TOKEN)
