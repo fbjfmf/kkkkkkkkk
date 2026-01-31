@@ -1,4 +1,4 @@
-requests
 google-generativeai
+discord.py
 flask
-
+requests
