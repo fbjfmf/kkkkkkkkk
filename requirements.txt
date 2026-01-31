@@ -2,3 +2,4 @@ google-genai
 discord.py
 flask
 python-dotenv
+gunicorn
