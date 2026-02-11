@@ -1,4 +1,4 @@
-google-genai
+google-generativeai
 discord.py
 flask
 python-dotenv
