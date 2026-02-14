@@ -6,19 +6,19 @@ from flask import Flask
 import discord
 import google.generativeai as genai
 
-# [1] 설정 로드 확인
+# [1] 설정 로드
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID", 0))
 
-# [2] 웹 서버
+# [2] 웹 서버 (Render 유지용)
 app = Flask('')
 @app.route('/')
 def home(): return "K is listening."
 def run_flask(): app.run(host='0.0.0.0', port=10000)
 def keep_alive(): t = Thread(target=run_flask); t.start()
 
-# [3] AI 연결 설정 (키 확인)
+# [3] AI 연결 설정
 if GEMINI_API_KEY:
     try:
         genai.configure(api_key=GEMINI_API_KEY)
@@ -35,9 +35,7 @@ async def on_ready():
     print(f'✅ Logged in as {client.user}')
     channel = client.get_channel(CHANNEL_ID)
     if channel:
-        # 키가 있는지 없는지 알려줌
-        key_status = "Key Loaded" if GEMINI_API_KEY else "❌ KEY MISSING"
-        await channel.send(f"▶ **System Online. [{key_status}]**")
+        await channel.send("▶ **System Stabilized. Connection Complete.**")
 
 @client.event
 async def on_message(message):
@@ -46,23 +44,18 @@ async def on_message(message):
 
     async with message.channel.typing():
         try:
-            # 1. 키가 없으면 바로 에러
-            if not GEMINI_API_KEY:
-                await message.channel.send("⚠️ Error: GEMINI_API_KEY is missing in Render Settings.")
-                return
-
-            # 2. 모델 생성 및 대화
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            # [수정됨] 가장 안전한 'gemini-pro' 모델 사용
+            model = genai.GenerativeModel('gemini-pro')
+            
             response = model.generate_content(
-                f"System: You are K, a cynical AI. Keep it short.\nUser: {message.content}"
+                f"System: You are K, a cynical and cold AI. Keep it short.\nUser: {message.content}"
             )
             await message.channel.send(response.text)
             
         except Exception as e:
-            # [중요] 진짜 에러 원인을 채팅창에 보여줌
-            error_msg = str(e)
-            print(f"❌ Error: {error_msg}")
-            await message.channel.send(f"🚨 **DIAGNOSTIC ERROR:**\n`{error_msg}`")
+            # 혹시라도 에러나면 다시 알려줌
+            print(f"❌ Error: {e}")
+            await message.channel.send(f"⚠️ Error: {e}")
 
 if __name__ == "__main__":
     keep_alive()
