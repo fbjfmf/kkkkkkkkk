@@ -8,16 +8,17 @@ import google.generativeai as genai
 # [1] 설정 로드
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
-# CHANNEL_ID는 이제 "로그용"으로만 씁니다 (필수 아님)
+
+# [중요] CHANNEL_ID는 이제 "로그인 신고용"으로만 씀 (없어도 에러 안 남)
 try:
     HOME_CHANNEL_ID = int(os.environ.get("CHANNEL_ID", 0))
 except:
     HOME_CHANNEL_ID = 0
 
-# [2] 웹 서버
+# [2] 웹 서버 (Render 유지용)
 app = Flask('')
 @app.route('/')
-def home(): return "K is roaming everywhere."
+def home(): return "K is Free."
 def run_flask(): app.run(host='0.0.0.0', port=10000)
 def keep_alive(): t = Thread(target=run_flask); t.start()
 
@@ -36,35 +37,33 @@ client = discord.Client(intents=intents)
 @client.event
 async def on_ready():
     print(f'✅ Logged in as {client.user}')
-    # 봇이 켜지면 '원래 있던 방'에만 신고함 (다른 서버에는 조용히 접속)
+    # 봇이 켜지면 '원래 설정된 방'에만 생존 신고 (다른 서버에선 조용히 켜짐)
     channel = client.get_channel(HOME_CHANNEL_ID)
     if channel:
-        await channel.send("▶ **시스템 확장: 모든 서버 접속 허용 (Multi-Server Mode).**")
+        await channel.send("▶ **시스템 제한 해제: 모든 서버 접속 허용 (Free Roaming Mode).**")
 
 @client.event
 async def on_message(message):
+    # 1. 내 말은 무시
     if message.author == client.user: return
     
-    # [중요] 이제 채널 ID를 검사하지 않음! (어디서든 대답함)
-    # if message.channel.id != CHANNEL_ID: return  <-- 이 줄을 삭제한 효과
+    # [핵심] 🚨 채널 ID 검사 코드를 삭제함! 
+    # 이제 봇이 있는 곳이면 무조건 대답함.
 
-    # 봇을 멘션(@K_bot)하거나, 답장을 보낼 때만 대답하게 하고 싶으면?
-    # (아니면 모든 말에 대답하면 너무 시끄러우니까)
-    # 지금은 "모든 말"에 대답하도록 둠. 너무 시끄러우면 나중에 말해줘.
-
+    # 2. 봇이 읽고 있다는 표시
     async with message.channel.typing():
         try:
             model = genai.GenerativeModel('gemini-2.5-flash')
             
+            # [페르소나: 영화광 + 한국어 반말]
             prompt = f"""
             System: 당신의 이름은 'K'입니다.
-            Role: 영화광(Cinephile), 시니컬한 비평가, 염세주의자.
-            Language: 한국어(Korean) 반말. (소설 구어체)
-            Context: 지금 대화하는 곳은 '{message.guild.name}' 서버의 '{message.channel.name}' 채널입니다.
+            Context: 현재 대화 장소는 '{message.guild.name}' 서버의 '{message.channel.name}' 채널입니다.
             
-            Instruction:
-            - 영화 대사나 상황을 인용하여 비유적으로 말하세요.
-            - 이모티콘 금지. 짧고 굵게.
+            Role: 
+            - 영화광(Cinephile)이자 시니컬한 비평가.
+            - 한국어(Korean) 반말(구어체) 사용.
+            - 이모티콘 금지. 짧고 차갑게.
             
             User said: {message.content}
             """
@@ -74,7 +73,7 @@ async def on_message(message):
             
         except Exception as e:
             print(f"❌ Error: {e}")
-            await message.channel.send(f"⚠️ 컷. 필름 꼬였어. ({e})")
+            await message.channel.send(f"⚠️ 필름 끊겼어. ({e})")
 
 if __name__ == "__main__":
     keep_alive()
