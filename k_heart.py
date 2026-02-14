@@ -6,36 +6,39 @@ from flask import Flask
 import discord
 import google.generativeai as genai
 
-# [1] 설정 로드
+# [1] 설정 로드 확인
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID", 0))
 
-# [2] AI 연결 (안전한 구버전 방식)
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-
-# [3] 웹 서버 (Render 유지용)
+# [2] 웹 서버
 app = Flask('')
 @app.route('/')
 def home(): return "K is listening."
 def run_flask(): app.run(host='0.0.0.0', port=10000)
 def keep_alive(): t = Thread(target=run_flask); t.start()
 
-# [4] 디스코드 봇 설정
+# [3] AI 연결 설정 (키 확인)
+if GEMINI_API_KEY:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        print(f"❌ Key Config Error: {e}")
+
+# [4] 디스코드 설정
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
 
-# [5] 봇 켜질 때 (IndentationError 났던 부분 수정완료)
 @client.event
 async def on_ready():
     print(f'✅ Logged in as {client.user}')
     channel = client.get_channel(CHANNEL_ID)
     if channel:
-        await channel.send("▶ **System rebooted. All errors patched.**")
+        # 키가 있는지 없는지 알려줌
+        key_status = "Key Loaded" if GEMINI_API_KEY else "❌ KEY MISSING"
+        await channel.send(f"▶ **System Online. [{key_status}]**")
 
-# [6] 대화 기능 (404 에러 수정완료)
 @client.event
 async def on_message(message):
     if message.author == client.user: return
@@ -43,19 +46,24 @@ async def on_message(message):
 
     async with message.channel.typing():
         try:
-            # 모델 이름을 가장 기본형으로 변경 (에러 방지)
+            # 1. 키가 없으면 바로 에러
+            if not GEMINI_API_KEY:
+                await message.channel.send("⚠️ Error: GEMINI_API_KEY is missing in Render Settings.")
+                return
+
+            # 2. 모델 생성 및 대화
             model = genai.GenerativeModel('gemini-1.5-flash')
-            
             response = model.generate_content(
-                f"System: You are K, a cynical and cold AI. Answer briefly.\nUser: {message.content}"
+                f"System: You are K, a cynical AI. Keep it short.\nUser: {message.content}"
             )
             await message.channel.send(response.text)
             
         except Exception as e:
-            print(f"❌ Error: {e}")
-            await message.channel.send("⚠️ Error: I cannot think right now.")
+            # [중요] 진짜 에러 원인을 채팅창에 보여줌
+            error_msg = str(e)
+            print(f"❌ Error: {error_msg}")
+            await message.channel.send(f"🚨 **DIAGNOSTIC ERROR:**\n`{error_msg}`")
 
-# [실행]
 if __name__ == "__main__":
     keep_alive()
     client.run(DISCORD_TOKEN)
