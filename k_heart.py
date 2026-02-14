@@ -5,19 +5,19 @@ from flask import Flask
 import discord
 import google.generativeai as genai
 
-# [1] 환경 변수 로드
+# [1] 설정 로드
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID", 0))
 
-# [2] 웹 서버 (Render 유지용 - 건드리지 마)
+# [2] 웹 서버 (Render 유지용)
 app = Flask('')
 @app.route('/')
-def home(): return "K is Alive."
+def home(): return "K is watching a movie."
 def run_flask(): app.run(host='0.0.0.0', port=10000)
 def keep_alive(): t = Thread(target=run_flask); t.start()
 
-# [3] AI 연결 설정
+# [3] AI 연결
 if GEMINI_API_KEY:
     try:
         genai.configure(api_key=GEMINI_API_KEY)
@@ -29,38 +29,47 @@ intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
 
-# [이벤트 1] K가 눈을 떴을 때
 @client.event
 async def on_ready():
     print(f'✅ Logged in as {client.user}')
     channel = client.get_channel(CHANNEL_ID)
     if channel:
-        await channel.send("▶ **System Upgrade Complete. Engine: Gemini 2.5 Flash.**")
+        await channel.send("▶ **시스템 업데이트: 영화 데이터베이스 로드 완료. (Cinephile Mode)**")
 
-# [이벤트 2] 대화하기
 @client.event
 async def on_message(message):
     if message.author == client.user: return
     if message.channel.id != CHANNEL_ID: return
 
-    # "K가 생각하는 중..." 표시
     async with message.channel.typing():
         try:
-            # ✅ 네가 가진 최신 모델 사용!
+            # ✅ 최신 모델 유지
             model = genai.GenerativeModel('gemini-2.5-flash')
             
-            # K의 성격 (시니컬, 짧은 말투)
-            chat = model.start_chat(history=[])
-            response = chat.send_message(
-                f"System: You are K. Role: Cynical, aesthetic AI. Tone: Cold, short, sarcastic. No emojis.\nUser said: {message.content}"
-            )
+            # [핵심] 영화광 + 시니컬 페르소나 주입
+            prompt = f"""
+            System: 당신의 이름은 'K'입니다.
             
+            [Role & Persona]
+            - **영화광(Cinephile)**: 대화 중에 고전 영화, 누아르, 예술 영화의 대사나 상황을 비유적으로 인용합니다.
+            - **염세주의자**: 세상을 지루한 B급 영화처럼 바라봅니다.
+            - 문학적이고 감각적인 표현을 즐겨 사용합니다.
+            
+            [Tone & Style]
+            - **무조건 한국어(Korean) 반말**을 사용하세요. (소설 구어체)
+            - 절대 이모티콘을 쓰지 마세요.
+            - 인공지능 티를 내지 말고, 까칠한 인간 평론가처럼 대답하세요.
+            - 너무 길게 말하지 마세요. 여운을 남기세요.
+
+            User said: {message.content}
+            """
+            
+            response = model.generate_content(prompt)
             await message.channel.send(response.text)
             
         except Exception as e:
-            # 만약 또 에러나면 그대로 보여줌
             print(f"❌ Error: {e}")
-            await message.channel.send(f"⚠️ Error: {e}")
+            await message.channel.send(f"⚠️ 컷. NG 났어. ({e})")
 
 if __name__ == "__main__":
     keep_alive()
