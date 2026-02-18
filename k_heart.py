@@ -44,18 +44,19 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    # 1. 내 말은 무시
-    if message.author == client.user: return
+    # 1. 자기 말은 무시
+    if message.author == client.user: 
+        return
     
-    # [핵심] 🚨 채널 ID 검사 코드를 삭제함! 
-    # 이제 봇이 있는 곳이면 무조건 대답함.
+    # 2. 누군가 봇을 멘션(@K_bot)하지 않으면 대답 안 함 (이 부분이 핵심이야)
+    if client.user not in message.mentions:
+        return
 
-    # 2. 봇이 읽고 있다는 표시
+    # 3. 봇이 읽고 있다는 표시
     async with message.channel.typing():
         try:
             model = genai.GenerativeModel('gemini-2.5-flash')
             
-            # [페르소나: 영화광 + 한국어 반말]
             prompt = f"""
             System: 당신의 이름은 'K'입니다.
             Context: 현재 대화 장소는 '{message.guild.name}' 서버의 '{message.channel.name}' 채널입니다.
@@ -72,8 +73,9 @@ async def on_message(message):
             await message.channel.send(response.text)
             
         except Exception as e:
-            print(f"❌ Error: {e}")
-            await message.channel.send(f"⚠️ 필름 끊겼어. ({e})")
+            print(f"Error: {e}")
+            await message.channel.send(f"필름 끊겼어. ({e})")
+
 
 if __name__ == "__main__":
     keep_alive()
